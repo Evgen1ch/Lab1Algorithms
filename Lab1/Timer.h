@@ -13,7 +13,7 @@ public:
 		m_end = std::chrono::high_resolution_clock::now();
 		m_duration = m_end - m_start;
 	}
-	float getDuration() const
+	double getDuration() const
 	{
 		return m_duration.count();
 	}
@@ -21,6 +21,6 @@ public:
 private:
 	mutable std::chrono::time_point<std::chrono::steady_clock> m_start;
 	mutable std::chrono::time_point<std::chrono::steady_clock> m_end;
-	mutable std::chrono::duration<float> m_duration;
+	mutable std::chrono::duration<double> m_duration;
 };
 

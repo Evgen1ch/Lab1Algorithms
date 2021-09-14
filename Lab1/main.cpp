@@ -2,7 +2,6 @@
 #include <iostream>
 #include <fstream>
 #include <thread>
-#include <cassert>
 #include <random>
 #include <memory>
 #include <numeric>
@@ -17,15 +16,13 @@ using std::ifstream;
 using std::ofstream;
 using std::string;
 
-#define ARRAYSIZEM(arr) (sizeof(arr) / sizeof((arr)[0]))  // NOLINT(cppcoreguidelines-macro-usage)
-
 template <typename T> void heapify(T arr[], size_t n, size_t index);
 template <typename T> void buildHeap(T arr[], int n);
 template <typename T> void heapSort(T arr[], int n);
 template <typename T> void printArray(T arr[], int n);
 int intRand(const int& min, const int& max);
 std::shared_ptr<int> getRandomArray(size_t size);
-void writeCSV(size_t counts[], int c_n, float** results, int r_r, int r_c, string filename);
+void writeCSV(const std::vector<uint32_t>& counts, const std::vector<std::vector<double>*>& results, const std::vector<double>& averages, const string& filename);
 string createDateFilename();
 
 int main()
@@ -37,11 +34,12 @@ int main()
 
 	const uint32_t rows = endSize / step;
 
-	size_t* counts = new size_t[rows];
-	float** results = new float* [rows];
+	std::vector<uint32_t> counts(rows);
+	std::vector<std::vector<double>*> results(rows);
+	std::vector<double> averages;
 	for (size_t i = 0; i < rows; i++)
 	{
-		results[i] = new float[experimentsCount + 1]{0};
+		results[i] = new std::vector<double>(experimentsCount);
 	}
 	for (uint32_t i = 0, j = startSize; j <= endSize; j += step, i++)
 	{
@@ -59,20 +57,17 @@ int main()
 			heapSort(arr.get(), j);
 			timer.end();
 			//cout << '\t' << j << " elements. " << "Elapsed time: " << timer.getDuration() << "s" << endl;
-			results[k][i] = timer.getDuration();
+			(*results[k])[i] = timer.getDuration();
 		}
 	}
 
 	for (size_t i = 0; i < rows; i++)
 	{
-		for (size_t j = 0; j < experimentsCount; j++)
-			results[i][experimentsCount] += results[i][j];
-		results[i][experimentsCount] /= experimentsCount;
+		averages[i] = std::accumulate(results[i]->begin(), results[i]->end(), 0.0);
+		averages[i] /= experimentsCount;
 	}
 
-	printArray(results[0], 11);
-	
-	writeCSV(counts, rows, results, rows, experimentsCount + 1, "../../Lab1PythonPart/" + createDateFilename());
+	writeCSV(counts, results, averages, "../../Lab1PythonPart/" + createDateFilename());
 	return 0;
 }
 
@@ -158,26 +153,36 @@ std::shared_ptr<int> getRandomArray(size_t  size)
 	return std::shared_ptr<int>(result);
 }
 
-void writeCSV(size_t counts[], int c_n, float** results, int r_r, int r_c, string filename)
+void writeCSV(const std::vector<uint32_t>& counts, const std::vector<std::vector<double>*>& results,
+	const std::vector<double>& averages, const string& filename)
 {
-	ofstream file(filename);
-	for (int i = 0; i < c_n; ++i)
+	try
 	{
-		file << counts[i] << ",";
-		for (int j = 0; j < r_c - 1; ++j)
+		ofstream file(filename);
+		const size_t cols = results[0]->size();
+		for (size_t i = 0; i < counts.size(); ++i)
 		{
-			file << results[i][j] << ",";
+			file << counts[i] << ",";
+			for (size_t j = 0; j < cols; ++j)
+			{
+				file << (*results[i])[j] << ",";
+			}
+			file << averages[i] << endl;
 		}
-		file << results[i][r_c - 1] << endl;
+		file.close();
 	}
-	file.close();
+	catch(const std::exception& ex)
+	{
+		cout << ex.what() << endl;
+	}
+	
 }
 
 string createDateFilename()
 {
 	time_t t = time(nullptr);
 
-	tm localTime;
+	tm localTime{};
 	localtime_s(&localTime, &t);
 
 	return std::to_string(localTime.tm_mday) + "_" +
