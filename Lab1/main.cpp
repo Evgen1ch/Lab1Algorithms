@@ -7,6 +7,8 @@
 #include <numeric>
 #include <ctime>
 
+#include <glm/glm.hpp>
+
 #include "Timer.h"
 
 using std::cout;
@@ -23,20 +25,27 @@ template <typename T> void printArray(T arr[], int n);
 int intRand(const int& min, const int& max);
 std::shared_ptr<int> getRandomArray(size_t size);
 void writeCSV(const std::vector<uint32_t>& counts, const std::vector<std::vector<double>*>& results, const std::vector<double>& averages, const string& filename);
+void writeABC(double a, double b, const std::string& filename);
 string createDateFilename();
+
+double n2logn2(double n);
+double n2logn(double n);
+double nlogn(double n);
+double n2(double n);
+
 
 int main()
 {
 	const int experimentsCount = 10;
-	const uint32_t startSize = 1000;
-	const uint32_t endSize = 100000;
-	const uint32_t step = 1000;
+	const uint32_t startSize = 100;
+	const uint32_t endSize = 10000;
+	const uint32_t step = 100;
 
 	const uint32_t rows = endSize / step;
 
 	std::vector<uint32_t> counts(rows);
 	std::vector<std::vector<double>*> results(rows);
-	std::vector<double> averages;
+	std::vector<double> averages(rows);
 	for (size_t i = 0; i < rows; i++)
 	{
 		results[i] = new std::vector<double>(experimentsCount);
@@ -48,7 +57,9 @@ int main()
 
 	for (int i = 0; i < experimentsCount; ++i)
 	{
-		cout << "Experiment #" << i+1 << endl;
+		Timer iterationTimer;
+		cout << "Experiment #" << i+1 << ". ";
+		iterationTimer.start();
 		for (size_t j = startSize, k = 0; j <= endSize; j+=step, k++)
 		{
 			Timer timer;
@@ -56,9 +67,10 @@ int main()
 			timer.start();
 			heapSort(arr.get(), j);
 			timer.end();
-			//cout << '\t' << j << " elements. " << "Elapsed time: " << timer.getDuration() << "s" << endl;
 			(*results[k])[i] = timer.getDuration();
 		}
+		iterationTimer.end();
+		cout << "Elapsed time: " << iterationTimer.getDuration() << endl;
 	}
 
 	for (size_t i = 0; i < rows; i++)
@@ -67,7 +79,44 @@ int main()
 		averages[i] /= experimentsCount;
 	}
 
-	writeCSV(counts, results, averages, "../../Lab1PythonPart/" + createDateFilename());
+	writeCSV(counts, results, averages, "../../Lab1PythonPart/data123.txt");
+
+	glm::mat<2, 2, double, glm::qualifier::defaultp> mat(0.0);
+	glm::mat<2, 2, double, glm::qualifier::defaultp> mat1(0.0);
+	glm::mat<2, 2, double, glm::qualifier::defaultp> mat2(0.0);
+	
+
+	for(size_t i = 0; i < results.size(); i++)
+	{
+		mat[0][0] += n2logn2(counts[i]);
+		mat[0][1] += nlogn(counts[i]);
+		mat[1][0] += nlogn(counts[i]);
+		mat[1][1] += 1;
+
+		const double t1 = averages[i] * nlogn(counts[i]);
+		const double t2 = averages[i];
+
+		mat1[0][0] += t1;
+		mat1[0][1] += t2;
+		mat1[1][0] += nlogn(counts[i]);
+		mat1[1][1] += 1;
+
+		mat2[0][0] += n2logn2(counts[i]);
+		mat2[0][1] += nlogn(counts[i]);
+		mat2[1][0] += t1;
+		mat2[1][1] += t2;
+	}
+
+	const double det = determinant(mat);
+	const double det1 = determinant(mat1);
+	const double det2 = determinant(mat2);
+
+	const double a = det1 / det;
+	const double b = det2 / det;
+
+	writeABC(a, b,"../../Lab1PythonPart/abc.txt");
+	
+			
 	return 0;
 }
 
@@ -119,6 +168,7 @@ void heapSort(T arr[], const int n)
 }
 
 
+
 template <typename T>
 void printArray(T arr[], const int n)
 {
@@ -153,6 +203,7 @@ std::shared_ptr<int> getRandomArray(size_t  size)
 	return std::shared_ptr<int>(result);
 }
 
+
 void writeCSV(const std::vector<uint32_t>& counts, const std::vector<std::vector<double>*>& results,
 	const std::vector<double>& averages, const string& filename)
 {
@@ -178,6 +229,20 @@ void writeCSV(const std::vector<uint32_t>& counts, const std::vector<std::vector
 	
 }
 
+void writeABC(double a, double b, const string& filename)
+{
+	try
+	{
+		ofstream file(filename);
+		file << a << ", " << b;
+		file.close();  
+	}
+	catch (const std::exception& ex)
+	{
+		cout << ex.what() << endl;
+	}
+}
+
 string createDateFilename()
 {
 	time_t t = time(nullptr);
@@ -191,3 +256,25 @@ string createDateFilename()
 		std::to_string(localTime.tm_hour) + "_" +
 		std::to_string(localTime.tm_min) + ".txt";
 }
+
+inline double n2logn2(double n)
+{
+	return (n * n * log2(n) * log2(n));
+}
+
+inline double n2logn(double n)
+{
+	return (n * n * log2(n));
+}
+
+inline double nlogn(double n)
+{
+	return (n * log2(n));
+}
+
+inline double n2(double n)
+{
+	return (n * n);
+}
+
+
